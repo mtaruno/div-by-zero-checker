@@ -9,6 +9,10 @@ import org.checkerframework.checker.dividebyzero.qual.*;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 
+import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.AnnotationBuilder;
+
 public class DivByZeroVisitor extends BaseTypeVisitor<DivByZeroAnnotatedTypeFactory> {
 
   /** Set of operators we care about */
@@ -28,8 +32,14 @@ public class DivByZeroVisitor extends BaseTypeVisitor<DivByZeroAnnotatedTypeFact
    */
   private boolean errorAt(BinaryTree node) {
     // A BinaryTree can represent any binary operator, including + or -.
-    // TODO
-    return false;
+    // TODO        
+    if (!DIVISION_OPERATORS.contains(node.getKind())){
+      return false;
+    }
+
+    Tree denominator = node.getRightOperand();
+
+    return hasAnnotation(denominator, Zero.class) || hasAnnotation(denominator, Bottom.class);
   }
 
   /**
@@ -43,7 +53,13 @@ public class DivByZeroVisitor extends BaseTypeVisitor<DivByZeroAnnotatedTypeFact
     // A CompoundAssignmentTree represents any binary operator combined with an assignment,
     // such as "x += 10".
     // TODO
-    return false;
+    if (!DIVISION_OPERATORS.contains(node.getKind())){
+      return false;
+    }
+    // for compound assignments like x /= y, the denominator is the expression
+    Tree denominator = node.getExpression();
+
+    return hasAnnotation(denominator, Zero.class) || hasAnnotation(denominator, Bottom.class);
   }
 
   // ========================================================================
@@ -55,7 +71,7 @@ public class DivByZeroVisitor extends BaseTypeVisitor<DivByZeroAnnotatedTypeFact
     return INT_TYPES.contains(atypeFactory.getAnnotatedType(node).getKind());
   }
 
-  private boolean hasAnnotation(Tree node, Class<? extends Annotation> c) {
+  private boolean hasAnnotation(Tree node, Class<? extends Annotation> c){
     return atypeFactory.getAnnotatedType(node).hasPrimaryAnnotation(c);
   }
 

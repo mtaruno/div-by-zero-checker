@@ -1,20 +1,18 @@
 package org.checkerframework.checker.dividebyzero.qual;
 
+import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
-import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.SubtypeOf;
 
-import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+
 /**
- * You do not want a qualifier `@Top`. It appears here as a placeholder, so that the project
- * compiles.
+ * Indicates that the value is strictly negative.
  */
-@Documented
 @Retention(RetentionPolicy.RUNTIME)
-@DefaultQualifierInHierarchy
-@SubtypeOf({})
+@Documented
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-public @interface Top {}
+@SubtypeOf({Top.class})  // Negative is a subtype of Top.
+public @interface Negative {}

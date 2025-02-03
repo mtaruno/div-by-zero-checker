@@ -76,9 +76,42 @@ public class DivByZeroTransfer extends CFTransfer {
    */
   private AnnotationMirror refineLhsOfComparison(
       Comparison operator, AnnotationMirror lhs, AnnotationMirror rhs) {
-    // TODO
-    return lhs;
-  }
+      // TODO
+      // Our domain: @Zero, @Positive, @Negative, and @Top (unknown)
+      if (operator == Comparison.EQ) {
+        // instead of returning rhs directly, compute glb of lhs and rhs
+        return glb(lhs, rhs);
+      }
+      if (operator == Comparison.NE){
+        if (equal(lhs, rhs)){
+          return bottom();
+        }
+        return lhs;
+      }
+      if (operator == Comparison.LT){
+        // e.x. if we know x < 0, then x must be negative
+        if (equal(rhs, reflect(Zero.class))){
+          return reflect(Negative.class);
+        }
+        return lhs;
+      }
+      if (operator == Comparison.LE){
+        // if y <= 0 we conervatively assume that y might be zero
+        return reflect(Zero.class);
+      }
+      if (operator == Comparison.GT){
+        if (equal(rhs, reflect(Zero.class))){
+          return reflect(Positive.class);
+        }
+        return lhs;
+      }
+      if (operator == Comparison.GE){
+        // if y >= 0 we conservatively assume y might be zero  
+        return reflect(Zero.class);
+      }
+
+      return lhs;
+    }
 
   /**
    * For an arithmetic expression (lhs `op` rhs), compute the point in the lattice for the result of
@@ -98,7 +131,61 @@ public class DivByZeroTransfer extends CFTransfer {
   private AnnotationMirror arithmeticTransfer(
       BinaryOperator operator, AnnotationMirror lhs, AnnotationMirror rhs) {
     // TODO
-    return top();
+      AnnotationMirror top = top();
+      AnnotationMirror bottom = bottom();
+      AnnotationMirror zero = reflect(Zero.class);
+      AnnotationMirror pos = reflect(Positive.class);
+      AnnotationMirror neg = reflect(Negative.class);
+      AnnotationMirror u = reflect(Top.class);
+
+     
+      switch (operator) {
+        case PLUS:
+            if (equal(lhs, zero)) return rhs;
+            if (equal(rhs, zero)) return lhs;
+            // if both are positive, result is positive; if both are negative, result is negative
+            if (equal(lhs, pos) && equal(rhs, pos)) return pos;
+            if (equal(lhs, neg) && equal(rhs, neg)) return neg;
+            // if one is positive and one is negative, and if they are equal then result is zero
+            if (equal(lhs, pos) && equal(rhs, neg) && equal(lhs, rhs)) return zero;
+            if ((equal(lhs, pos) && equal(rhs, neg)) || (equal(lhs, neg) && equal(rhs, pos))) return u;
+            if (equal(lhs, u) || equal(rhs, u)) return u;
+            break;
+        case MINUS:
+            // if both operands are equal, then result is zero
+            if (equal(lhs, rhs)) return zero;
+            // x - y = x + (-y)
+            AnnotationMirror negRhs;
+            if (equal(rhs, pos)) negRhs = neg;
+            else if (equal(rhs, neg)) negRhs = pos;
+            else if (equal(rhs, zero)) negRhs = zero;
+            else negRhs = u;
+            return arithmeticTransfer(BinaryOperator.PLUS, lhs, negRhs);
+        case TIMES:
+            if (equal(lhs, zero) || equal(rhs, zero)) return zero;
+            if (equal(lhs, pos) && equal(rhs, pos)) return pos;
+            if (equal(lhs, neg) && equal(rhs, neg)) return pos;
+            if ((equal(lhs, pos) && equal(rhs, neg)) || (equal(lhs, neg) && equal(rhs, pos))) return neg;
+            if (equal(lhs, u) || equal(rhs, u)) return u;
+            break;
+        case DIVIDE:
+            // If the denominator is zero, signal an error.
+            if (equal(rhs, zero)) return bottom;
+            // Otherwise, if the numerator is zero, the result is zero.
+            if (equal(lhs, zero)) return zero;
+            if (equal(lhs, pos) && equal(rhs, pos)) return pos;
+            if (equal(lhs, pos) && equal(rhs, neg)) return neg;
+            if (equal(lhs, neg) && equal(rhs, pos)) return neg;
+            if (equal(lhs, neg) && equal(rhs, neg)) return pos;
+            return u;
+        case MOD:
+            if (equal(rhs, zero)) return bottom;
+            if (equal(lhs, zero)) return zero;
+            return u;
+        default:
+            break;
+    }
+    return top;
   }
 
   // ========================================================================
@@ -126,6 +213,10 @@ public class DivByZeroTransfer extends CFTransfer {
 
   /** Compute the greatest-lower-bound of two points in the lattice */
   private AnnotationMirror glb(AnnotationMirror x, AnnotationMirror y) {
+    // in the case where negative meets positive, we return the explicit bottom
+    if ((equal(x, reflect(Positive.class)) && equal(y,reflect(Negative.class))) || (equal(x, reflect(Negative.class)) && equal(y, reflect(Positive.class)))){
+      return bottom();
+    }
     return analysis.getTypeFactory().getQualifierHierarchy().greatestLowerBoundQualifiersOnly(x, y);
   }
 

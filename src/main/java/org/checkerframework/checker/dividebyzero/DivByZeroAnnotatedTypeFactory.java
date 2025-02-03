@@ -20,6 +20,7 @@ public class DivByZeroAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
   /**
    * Compute the default annotation for the given literal.
+   * For int and long literals, 0 is annotated as @Zero, positive values as @Positive, negative values as @Negative, otherwise default to @Top
    *
    * @param literal the literal in the syntax tree to examine
    * @return the most specific possible point in the lattice for the given literal
@@ -29,11 +30,25 @@ public class DivByZeroAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
       case INT_LITERAL:
         int intValue = (Integer) literal.getValue();
         // TODO
-        break;
+        if (intValue == 0){
+          return Zero.class;
+        } else if (intValue > 0){
+          return Positive.class;
+        } else { // intValue < 0
+          return Negative.class;
+        }
+        default:
+          break;
       case LONG_LITERAL:
         long longValue = (Long) literal.getValue();
         // TODO
-        break;
+        if (longValue == 0L){
+          return Zero.class;
+        } else if (longValue > 0L){
+          return Positive.class;
+        } else {
+          return Negative.class;
+        }
     }
     return Top.class;
   }
